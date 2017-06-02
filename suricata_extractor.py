@@ -11,6 +11,7 @@ from os.path import isfile, join
 import json
 from pprint import pprint
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 #import pandas as pd
 
 version = '0.1'
@@ -36,6 +37,39 @@ class TimeWindow(object):
         self.severities[4] = 0
         self.categories['Not Suspicious Traffic'] = 0
         self.categories['Generic Protocol Command Decode'] = 0
+        self.categories['Unknown Traffic'] = 0
+        self.categories['Potentially Bad Traffic'] = 0
+        self.categories['Attempted Information Leak'] = 0
+        self.categories['Information Leak'] = 0
+        self.categories['Large Scale Information Leak'] = 0
+        self.categories['Attempted Denial of Service'] = 0
+        self.categories['Denial of Service'] = 0
+        self.categories['Attempted User Privilege Gain'] = 0
+        self.categories['Access to a Potentially Vulnerable Web Application'] = 0
+        self.categories['Generic Protocol Command Decode'] = 0
+        self.categories['Detection of a Non-Standard Protocol or Event'] = 0
+        self.categories['Detection of a Denial of Service Attack'] = 0
+        self.categories['Detection of a Network Scan'] = 0
+        self.categories['A Client was Using an Unusual Port'] = 0
+        self.categories['A Network Trojan was Detected'] = 0
+        self.categories['A TCP Connection was Detected'] = 0
+        self.categories['A System Call was Detected'] = 0
+        self.categories['An Attempted Login Using a Suspicious Username was Detected'] = 0
+        self.categories['A Suspicious Filename was Detected'] = 0
+        self.categories['A Suspicious String was Detected'] = 0
+        self.categories['Executable Code was Detected'] = 0
+        self.categories['Decode of an RPC Query'] = 0
+        self.categories['Successful Administrator Privilege Gain'] = 0
+        self.categories['Attempted Administrator Privilege Gain'] = 0
+        self.categories['Successful User Privilege Gain'] = 0
+        self.categories['Unsuccessful User Privilege Gain'] = 0
+        self.categories['Inappropriate Content was Detected'] = 0
+        self.categories['Generic ICMP event'] = 0
+        self.categories['Misc Attack'] = 0
+        self.categories['Misc activity'] = 0
+        self.categories['Web Application Attack'] = 0
+        self.categories['Attempt to Login By a Default Username and Password'] = 0
+        self.categories['Potential Corporate Privacy Violation'] = 0
         self.signatures = {}
         self.src_ips = {}
         self.dst_ips = {}
@@ -119,26 +153,51 @@ def output_tw(time_tw):
         csvline = tw.get_csv()
         csvfile.write(csvline + '\n')
         csvfile.flush()
-    plot(tw)
 
-def plot(tw):
-    print 'Plotting'
-    plt.plot([1,2,3,4])
-    plt.ylabel('some numbers')
+def plot():
+    """
+    """
+    if args.verbose > 1:
+        print 'Plotting'
+    plt.figure(1)
+    cat1val = []
+    cat2val = []
+    sev1val = []
+    sev2val = []
+    sev3val = []
+    sev4val = []
+    sigval = []
+    srcipval = []
+    dstipval = []
+    labels = []
+    #self.signatures = {}
+    #self.src_ips = {}
+    #self.dst_ips = {}
+    #csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic, Unknown Traffic, Potentially Bad Traffic, Attempted Information Leak, Information Leak, Large Scale Information Leak, Attempted Denial of Service, Denial of Service, Attempted User Privilege Gain, Unsuccessful User Privilege Gain, Successful User Privilege Gain, Attempted Administrator Privilege Gain, Successful Administrator Privilege Gain, Decode of an RPC Query, Executable Code was Detected, A Suspicious String was Detected, A Suspicious Filename was Detected, An Attempted Login Using a Suspicious Username was Detected, A System Call was Detected, A TCP Connection was Detected, A Network Trojan was Detected, A Client was Using an Unusual Port, Detection of a Network Scan, Detection of a Denial of Service Attack, Detection of a Non-Standard Protocol or Event, Generic Protocol Command Decode, Access to a Potentially Vulnerable Web Application, Web Application Attack, Misc activity, Misc Attack, Generic ICMP event, Inappropriate Content was Detected, Potential Corporate Privacy Violation, Attempt to Login By a Default Username and Password' + '\n')
+    for tw in timewindows:
+        labels.append(tw)
+        cat1val.append(timewindows[tw].categories['Not Suspicious Traffic'])
+        cat2val.append(timewindows[tw].categories['Generic Protocol Command Decode'])
+        sev1val.append(timewindows[tw].severities[1])
+        sev2val.append(timewindows[tw].severities[2])
+        sev3val.append(timewindows[tw].severities[3])
+        sev3val.append(timewindows[tw].severities[4])
+        sigval.append(len(timewindows[tw].signatures))
+        srcipval.append(len(timewindows[tw].src_ips))
+        dstipval.append(len(timewindows[tw].dst_ips))
+    plt.plot(cat1val, 'b-', label='Not Suspicious Traffic')
+    plt.plot(cat2val, 'r-', label='Generic Protocol Command Decode')
+    plt.plot(sev1val, 'c-', label='Severity 1')
+    plt.plot(sev2val, 'c.', label='Severity 2')
+    plt.plot(sev3val, 'c+', label='Severity 3')
+    plt.plot(sev4val, 'c*', label='Severity 4')
+    plt.plot(sigval, 'm-', label='Signatures')
+    plt.plot(srcipval, 'm-', label='Signatures')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    #plt.xticks(range(1,len(labels)), labels)
+    plt.legend(loc=0)
+    plt.ylabel('Amount')
     plt.show()
-    #data = data.items()
-    #print data
-    #print data[1:,1:]
-    #values = numpy.zeros(20, dtype=dtype)
-    #pd.DataFrame(data=data[1:,1:],index=data[1:,0],columns=data[0,1:])
-
-    #y = data.keys()
-    #N = len(y)
-    #x = data.values()
-    #width = 1/1.5
-    #plt.bar(x, y, width, color="blue")
-    #fig = plt.gcf()
-    #plot_url = py.plot_mpl(fig, filename='mpl-basic-bar')
 
 def process_line(line):
     """
@@ -201,6 +260,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--width', help='Width of the time window to process. In minutes.', action='store', required=False, type=int, default=60)
     parser.add_argument('-d', '--dstnet', help='Destination net to monitor. Ex: 192.168 to search everything attacking 192.168.0.0/16 network', action='store', required=False)
     parser.add_argument('-c', '--csv', help='CSV output file', action='store', type=str, required=False)
+    parser.add_argument('-p', '--plot', help='Plot', action='store_true', required=False)
     args = parser.parse_args()
 
     # Get the verbosity, if it was not specified as a parameter 
@@ -254,22 +314,26 @@ if __name__ == '__main__':
         csvfile.flush()
 
     current_tw = ''
-    if args.file:
-        if args.verbose > 1:
-            print 'Working with the file {} as parameter'.format(args.file)
-        f = open(args.file)
-        line = f.readline()
-        while line:
-            tw = process_line(line)
-            if tw:
-                current_tw = tw
+    try:
+        if args.file:
+            if args.verbose > 1:
+                print 'Working with the file {} as parameter'.format(args.file)
+            f = open(args.file)
             line = f.readline()
-        f.close()
-    else:
-        for line in sys.stdin:
-            tw = process_line(line)
-            if tw:
-                current_tw = tw
+            while line:
+                tw = process_line(line)
+                if tw:
+                    current_tw = tw
+                line = f.readline()
+            f.close()
+        else:
+            for line in sys.stdin:
+                tw = process_line(line)
+                if tw:
+                    current_tw = tw
+    except KeyboardInterrupt:
+        pass
+
     ## Print last tw
     timestamp = datetime.strptime(current_tw.start_time, timeStampFormat)
     round_down_timestamp = roundTime(timestamp,timedelta(minutes=args.width), 'down')
@@ -278,4 +342,7 @@ if __name__ == '__main__':
 
     if args.csv:
         csvfile.close()
+
+    if args.plot:
+        plot()
 
