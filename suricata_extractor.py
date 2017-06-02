@@ -11,7 +11,7 @@ from os.path import isfile, join
 import json
 from pprint import pprint
 import matplotlib.pyplot as plt
-import pandas as pd
+#import pandas as pd
 
 version = '0.1'
 
@@ -79,6 +79,8 @@ def get_tw(col_time):
     str_round_down_timestamp = round_down_timestamp.strftime(timeStampFormat)
     try:
         tw = timewindows[str_round_down_timestamp]
+        if args.verbose > 1:
+            print 'Getting an old tw {}'.format(tw)
     except KeyError:
         # New tw
         # Get the previous TW id
@@ -117,15 +119,18 @@ def output_tw(time_tw):
         csvline = tw.get_csv()
         csvfile.write(csvline + '\n')
         csvfile.flush()
-    #plot(tw.categories)
+    plot(tw)
 
-def plot(data):
+def plot(tw):
     print 'Plotting'
-    data = data.items()
+    plt.plot([1,2,3,4])
+    plt.ylabel('some numbers')
+    plt.show()
+    #data = data.items()
     #print data
-    print data[1:,1:]
-    values = numpy.zeros(20, dtype=dtype)
-    pd.DataFrame(data=data[1:,1:],index=data[1:,0],columns=data[0,1:])
+    #print data[1:,1:]
+    #values = numpy.zeros(20, dtype=dtype)
+    #pd.DataFrame(data=data[1:,1:],index=data[1:,0],columns=data[0,1:])
 
     #y = data.keys()
     #N = len(y)
@@ -138,11 +143,15 @@ def plot(data):
 def process_line(line):
     """
     """
+    if args.verbose > 3:
+        print 'Processing line {}'.format(line)
     json_line = json.loads(line)
     if json_line['event_type'] != 'alert':
         return False
     if args.dstnet and args.dstnet not in json_line['dest_ip']:
         return False
+    if args.verbose > 2:
+        print 'Accepted line {}'.format(line)
     # forget the timezone for now with split
     col_time = json_line['timestamp'].split('+')[0]
     col_category = json_line['alert']['category']
@@ -244,18 +253,23 @@ if __name__ == '__main__':
         #csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic, Unknown Traffic, Potentially Bad Traffic, Attempted Information Leak, Information Leak, Large Scale Information Leak, Attempted Denial of Service, Denial of Service, Attempted User Privilege Gain, Unsuccessful User Privilege Gain, Successful User Privilege Gain, Attempted Administrator Privilege Gain, Successful Administrator Privilege Gain, Decode of an RPC Query, Executable Code was Detected, A Suspicious String was Detected, A Suspicious Filename was Detected, An Attempted Login Using a Suspicious Username was Detected, A System Call was Detected, A TCP Connection was Detected, A Network Trojan was Detected, A Client was Using an Unusual Port, Detection of a Network Scan, Detection of a Denial of Service Attack, Detection of a Non-Standard Protocol or Event, Generic Protocol Command Decode, Access to a Potentially Vulnerable Web Application, Web Application Attack, Misc activity, Misc Attack, Generic ICMP event, Inappropriate Content was Detected, Potential Corporate Privacy Violation, Attempt to Login By a Default Username and Password' + '\n')
         csvfile.flush()
 
+    current_tw = ''
     if args.file:
         if args.verbose > 1:
             print 'Working with the file {} as parameter'.format(args.file)
         f = open(args.file)
         line = f.readline()
         while line:
-            current_tw = process_line(line)
+            tw = process_line(line)
+            if tw:
+                current_tw = tw
             line = f.readline()
         f.close()
     else:
         for line in sys.stdin:
-            current_tw = process_line(line)
+            tw = process_line(line)
+            if tw:
+                current_tw = tw
     ## Print last tw
     timestamp = datetime.strptime(current_tw.start_time, timeStampFormat)
     round_down_timestamp = roundTime(timestamp,timedelta(minutes=args.width), 'down')
