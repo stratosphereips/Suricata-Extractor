@@ -97,10 +97,8 @@ class TimeWindow(object):
             self.dst_ips[dst_ip] = 1
 
     def get_csv(self):
-        #return '{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}'.format(str(self.hour), len(self.categories), len(self.severities), len(self.signatures), len(self.src_ips), len(self.dst_ips))
-        return '{},{},{},{},{},{},{},{},{},{},{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]], self.categories['Not Suspicious Traffic'], self.categories['Generic Protocol Command Decode'])
-        #, Unknown Traffic, Potentially Bad Traffic, Attempted Information Leak, Information Leak, Large Scale Information Leak, Attempted Denial of Service, Denial of Service, Attempted User Privilege Gain, Unsuccessful User Privilege Gain, Successful User Privilege Gain, Attempted Administrator Privilege Gain, Successful Administrator Privilege Gain, Decode of an RPC Query, Executable Code was Detected, A Suspicious String was Detected, A Suspicious Filename was Detected, An Attempted Login Using a Suspicious Username was Detected, A System Call was Detected, A TCP Connection was Detected, A Network Trojan was Detected, A Client was Using an Unusual Port, Detection of a Network Scan, Detection of a Denial of Service Attack, Detection of a Non-Standard Protocol or Event, Generic Protocol Command Decode, Access to a Potentially Vulnerable Web Application, Web Application Attack, Misc activity, Misc Attack, Generic ICMP event, Inappropriate Content was Detected, Potential Corporate Privacy Violation, Attempt to Login By a Default Username and Password' + '\n')
-
+        return '{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]], self.categories['Not Suspicious Traffic'], self.categories['Unknown Traffic'], self.categories['Potentially Bad Traffic'], self.categories['Attempted Information Leak'], self.categories['Information Leak'], self.categories['Large Scale Information Leak'], self.categories['Attempted Denial of Service'], self.categories['Denial of Service'], self.categories['Attempted User Privilege Gain'], self.categories['Unsuccessful User Privilege Gain'], self.categories['Successful User Privilege Gain'], self.categories['Attempted Administrator Privilege Gain'], self.categories['Successful Administrator Privilege Gain'], self.categories['Decode of an RPC Query'], self.categories['Executable Code was Detected'], self.categories['A Suspicious String was Detected'], self.categories['A Suspicious Filename was Detected'], self.categories['An Attempted Login Using a Suspicious Username was Detected'], self.categories['A System Call was Detected'], self.categories['A TCP Connection was Detected'], self.categories['A Network Trojan was Detected'], self.categories['A Client was Using an Unusual Port'], self.categories['Detection of a Network Scan'], self.categories['Detection of a Denial of Service Attack'], self.categories['Detection of a Non-Standard Protocol or Event'], self.categories['Generic Protocol Command Decode'], self.categories['Access to a Potentially Vulnerable Web Application'], self.categories['Web Application Attack'], self.categories['Misc activity'], self.categories['Misc Attack'], self.categories['Generic ICMP event'], self.categories['Inappropriate Content was Detected'], self.categories['Potential Corporate Privacy Violation'], self.categories['Attempt to Login By a Default Username and Password'])
+        
     def __repr__(self):
         return 'TW: {}. #Categories: {}. #Signatures: {}. #SrcIp: {}. #DstIP: {}. #Severities: 1:{},2:{},3:{},4:{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]])
 
@@ -113,7 +111,7 @@ def get_tw(col_time):
     str_round_down_timestamp = round_down_timestamp.strftime(timeStampFormat)
     try:
         tw = timewindows[str_round_down_timestamp]
-        if args.verbose > 1:
+        if args.verbose > 3:
             print 'Getting an old tw {}'.format(tw)
     except KeyError:
         # New tw
@@ -141,7 +139,8 @@ def output_tw(time_tw):
         return False
     print '\tCategories:'
     for cat in tw.categories:
-        print '\t\t{}: {}'.format(cat, tw.categories[cat])
+        if tw.categories[cat] != 0:
+            print '\t\t{}: {}'.format(cat, tw.categories[cat])
     print '\tSeverities:'
     for sev in tw.severities:
         print '\t\t{}: {}'.format(sev, tw.severities[sev])
@@ -158,7 +157,7 @@ def plot():
     """
     """
     if args.verbose > 1:
-        print 'Plotting'
+        print 'Plotting {} timewindows'.format(len(timewindows))
     plt.figure(1)
     cat1val = []
     cat2val = []
@@ -181,23 +180,28 @@ def plot():
         sev1val.append(timewindows[tw].severities[1])
         sev2val.append(timewindows[tw].severities[2])
         sev3val.append(timewindows[tw].severities[3])
-        sev3val.append(timewindows[tw].severities[4])
+        sev4val.append(timewindows[tw].severities[4])
         sigval.append(len(timewindows[tw].signatures))
         srcipval.append(len(timewindows[tw].src_ips))
         dstipval.append(len(timewindows[tw].dst_ips))
-    plt.plot(cat1val, 'b-', label='Not Suspicious Traffic')
-    plt.plot(cat2val, 'r-', label='Generic Protocol Command Decode')
-    plt.plot(sev1val, 'c-', label='Severity 1')
-    plt.plot(sev2val, 'c.', label='Severity 2')
-    plt.plot(sev3val, 'c+', label='Severity 3')
-    plt.plot(sev4val, 'c*', label='Severity 4')
-    plt.plot(sigval, 'm-', label='Signatures')
-    plt.plot(srcipval, 'm-', label='Signatures')
+    y = range(1, len(timewindows) + 1)
+    plt.plot(y, cat1val, 'b-', label='Not Suspicious Traffic')
+    plt.plot(y, cat2val, 'r-', label='Generic Protocol Command Decode')
+    plt.plot(y, sev1val, 'c-', label='Severity 1')
+    plt.plot(y, sev2val, 'c.', label='Severity 2')
+    plt.plot(y, sev3val, 'c+', label='Severity 3')
+    plt.plot(y, sev4val, 'c*', label='Severity 4')
+    plt.plot(y, sigval, 'm-', label='Signatures')
+    plt.plot(y, srcipval, 'y-', label='SrcIps')
+    plt.plot(y, dstipval, 'k-', label='DstIps')
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #plt.xticks(range(1,len(labels)), labels)
     plt.legend(loc=0)
     plt.ylabel('Amount')
+    if args.plotfile:
+        plt.savefig(args.plotfile)
     plt.show()
+
 
 def process_line(line):
     """
@@ -260,7 +264,8 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--width', help='Width of the time window to process. In minutes.', action='store', required=False, type=int, default=60)
     parser.add_argument('-d', '--dstnet', help='Destination net to monitor. Ex: 192.168 to search everything attacking 192.168.0.0/16 network', action='store', required=False)
     parser.add_argument('-c', '--csv', help='CSV output file', action='store', type=str, required=False)
-    parser.add_argument('-p', '--plot', help='Plot', action='store_true', required=False)
+    parser.add_argument('-p', '--plot', help='Plot the data in an active window.', action='store_true', required=False)
+    parser.add_argument('-P', '--plotfile', help='Store the plot in this file. Extension can be .png or .pdf', action='store', type=str, required=False)
     args = parser.parse_args()
 
     # Get the verbosity, if it was not specified as a parameter 
@@ -274,43 +279,7 @@ if __name__ == '__main__':
     # If csv
     if args.csv:
         csvfile = open(args.csv, 'w')
-        # Not Suspicious Traffic
-        # Unknown Traffic
-        # Potentially Bad Traffic
-        # Attempted Information Leak
-        # Information Leak
-        # Large Scale Information Leak
-        # Attempted Denial of Service
-        # Denial of Service
-        # Attempted User Privilege Gain
-        # Unsuccessful User Privilege Gain
-        # Successful User Privilege Gain
-        # Attempted Administrator Privilege Gain
-        # Successful Administrator Privilege Gain
-        # Decode of an RPC Query
-        # Executable Code was Detected
-        # A Suspicious String was Detected
-        # A Suspicious Filename was Detected
-        # An Attempted Login Using a Suspicious Username was Detected
-        # A System Call was Detected
-        # A TCP Connection was Detected
-        # A Network Trojan was Detected
-        # A Client was Using an Unusual Port
-        # Detection of a Network Scan
-        # Detection of a Denial of Service Attack
-        # Detection of a Non-Standard Protocol or Event
-        # Generic Protocol Command Decode
-        # Access to a Potentially Vulnerable Web Application
-        # Web Application Attack
-        # Misc activity
-        # Misc Attack
-        # Generic ICMP event
-        # Inappropriate Content was Detected
-        # Potential Corporate Privacy Violation
-        # Attempt to Login By a Default Username and Password
-        #csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4' + '\n')
-        csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic,Generic Protocol Command Decode' + '\n')
-        #csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic, Unknown Traffic, Potentially Bad Traffic, Attempted Information Leak, Information Leak, Large Scale Information Leak, Attempted Denial of Service, Denial of Service, Attempted User Privilege Gain, Unsuccessful User Privilege Gain, Successful User Privilege Gain, Attempted Administrator Privilege Gain, Successful Administrator Privilege Gain, Decode of an RPC Query, Executable Code was Detected, A Suspicious String was Detected, A Suspicious Filename was Detected, An Attempted Login Using a Suspicious Username was Detected, A System Call was Detected, A TCP Connection was Detected, A Network Trojan was Detected, A Client was Using an Unusual Port, Detection of a Network Scan, Detection of a Denial of Service Attack, Detection of a Non-Standard Protocol or Event, Generic Protocol Command Decode, Access to a Potentially Vulnerable Web Application, Web Application Attack, Misc activity, Misc Attack, Generic ICMP event, Inappropriate Content was Detected, Potential Corporate Privacy Violation, Attempt to Login By a Default Username and Password' + '\n')
+        csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic, Unknown Traffic, Potentially Bad Traffic, Attempted Information Leak, Information Leak, Large Scale Information Leak, Attempted Denial of Service, Denial of Service, Attempted User Privilege Gain, Unsuccessful User Privilege Gain, Successful User Privilege Gain, Attempted Administrator Privilege Gain, Successful Administrator Privilege Gain, Decode of an RPC Query, Executable Code was Detected, A Suspicious String was Detected, A Suspicious Filename was Detected, An Attempted Login Using a Suspicious Username was Detected, A System Call was Detected, A TCP Connection was Detected, A Network Trojan was Detected, A Client was Using an Unusual Port, Detection of a Network Scan, Detection of a Denial of Service Attack, Detection of a Non-Standard Protocol or Event, Generic Protocol Command Decode, Access to a Potentially Vulnerable Web Application, Web Application Attack, Misc activity, Misc Attack, Generic ICMP event, Inappropriate Content was Detected, Potential Corporate Privacy Violation, Attempt to Login By a Default Username and Password' + '\n')
         csvfile.flush()
 
     current_tw = ''
