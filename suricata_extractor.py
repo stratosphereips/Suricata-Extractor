@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import math
 
-version = '0.1'
+version = '0.2'
 
 timewindows = {}
 timeStampFormat = '%Y-%m-%dT%H:%M:%S.%f'
@@ -38,41 +38,6 @@ class TimeWindow(object):
         self.severities[4] = 0
         for cat in categories:
             self.categories[cat] = 0
-        #self.categories['Not Suspicious Traffic'] = 0
-        #self.categories['Generic Protocol Command Decode'] = 0
-        #self.categories['Unknown Traffic'] = 0
-        #self.categories['Potentially Bad Traffic'] = 0
-        #self.categories['Attempted Information Leak'] = 0
-        #self.categories['Information Leak'] = 0
-        #self.categories['Large Scale Information Leak'] = 0
-        #self.categories['Attempted Denial of Service'] = 0
-        #self.categories['Denial of Service'] = 0
-        #self.categories['Attempted User Privilege Gain'] = 0
-        #self.categories['Access to a Potentially Vulnerable Web Application'] = 0
-        #self.categories['Generic Protocol Command Decode'] = 0
-        #self.categories['Detection of a Non-Standard Protocol or Event'] = 0
-        #self.categories['Detection of a Denial of Service Attack'] = 0
-        #self.categories['Detection of a Network Scan'] = 0
-        #self.categories['A Client was Using an Unusual Port'] = 0
-        #self.categories['A Network Trojan was Detected'] = 0
-        #self.categories['A TCP Connection was Detected'] = 0
-        #self.categories['A System Call was Detected'] = 0
-        #self.categories['An Attempted Login Using a Suspicious Username was Detected'] = 0
-        #self.categories['A Suspicious Filename was Detected'] = 0
-        #self.categories['A Suspicious String was Detected'] = 0
-        #self.categories['Executable Code was Detected'] = 0
-        #self.categories['Decode of an RPC Query'] = 0
-        #self.categories['Successful Administrator Privilege Gain'] = 0
-        #self.categories['Attempted Administrator Privilege Gain'] = 0
-        #self.categories['Successful User Privilege Gain'] = 0
-        #self.categories['Unsuccessful User Privilege Gain'] = 0
-        #self.categories['Inappropriate Content was Detected'] = 0
-        #self.categories['Generic ICMP event'] = 0
-        #self.categories['Misc Attack'] = 0
-        #self.categories['Misc activity'] = 0
-        #self.categories['Web Application Attack'] = 0
-        #self.categories['Attempt to Login By a Default Username and Password'] = 0
-        #self.categories['Potential Corporate Privacy Violation'] = 0
         self.signatures = {}
         self.src_ips = {}
         self.dst_ips = {}
@@ -82,7 +47,7 @@ class TimeWindow(object):
             try:
                 self.categories['Uknown Traffic'] += 1
             except KeyError:
-                self.categories[category] = 1
+                self.categories['Uknown Traffic'] = 1
         else:
             try:
                 self.categories[category] += 1
@@ -162,6 +127,7 @@ def plot():
     if args.verbose > 1:
         print 'Plotting {} timewindows'.format(len(timewindows))
     plt.figure(figsize=(10, 3))
+    plt.subplots_adjust(right=0.75)
     if args.verbose > 1:
         print 'Figure created'
     cat1val = []
@@ -176,7 +142,15 @@ def plot():
     categoriesvals = []
     # Scale
     if args.log:
-        yfunc = lambda y: math.log(float(y))
+        #yfunc = lambda y: map(lambda x:math.log(x), y)
+        def yfunc(y):
+            v = []
+            for i in y:
+                if i == 0:
+                    v.append(0)
+                else:
+                    v.append(math.log(i))
+            return v
     elif not args.log:
         yfunc = lambda y: y
     #labels = []
@@ -212,10 +186,17 @@ def plot():
     plt.plot(y, yfunc(sigval), 'ms', label='Signatures')
     plt.plot(y, yfunc(srcipval), 'y--', label='SrcIps')
     plt.plot(y, yfunc(dstipval), 'k--', label='DstIps')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    #plt.legend(bbox_to_anchor=(1.05, 1), loc=2), borderaxespad=0.)
+    #plt.legend(bbox_to_anchor=(1.05, 1), loc=2)
+    plt.legend(bbox_to_anchor=(1, 1), loc=2) 
     #plt.xticks(range(1,len(labels)), labels)
-    plt.legend(loc=0)
-    plt.ylabel('Amount')
+    #plt.legend(loc=0)
+    if args.log:
+        plt.ylabel('Amount in Log scale)')
+    else:
+        plt.ylabel('Amount')
+    #ylabs = [math.exp(i) for i in range(0,10)]
+    #plt.yticks(ylabs)
     if args.plotfile:
         plt.savefig(args.plotfile, dpi=1000)
     plt.show()
