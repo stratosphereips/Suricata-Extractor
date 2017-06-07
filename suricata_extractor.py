@@ -14,7 +14,15 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import math
 
-version = '0.2'
+version = '0.3'
+
+# Changelog
+# 0.3: 
+#  Fix the Unknown category in the csv
+# 0.2: 
+#  Generate the csv
+#  Plot the data
+#  Generate an image file
 
 timewindows = {}
 timeStampFormat = '%Y-%m-%dT%H:%M:%S.%f'
@@ -45,9 +53,9 @@ class TimeWindow(object):
     def add_alert(self, category, severity, signature, src_ip, dst_ip):
         if category == '':
             try:
-                self.categories['Uknown Traffic'] += 1
+                self.categories['Unknown Traffic'] += 1
             except KeyError:
-                self.categories['Uknown Traffic'] = 1
+                self.categories['Unknown Traffic'] = 1
         else:
             try:
                 self.categories[category] += 1
@@ -279,7 +287,7 @@ if __name__ == '__main__':
     # If csv
     if args.csv:
         csvfile = open(args.csv, 'w')
-        csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic, Unknown Traffic, Potentially Bad Traffic, Attempted Information Leak, Information Leak, Large Scale Information Leak, Attempted Denial of Service, Denial of Service, Attempted User Privilege Gain, Unsuccessful User Privilege Gain, Successful User Privilege Gain, Attempted Administrator Privilege Gain, Successful Administrator Privilege Gain, Decode of an RPC Query, Executable Code was Detected, A Suspicious String was Detected, A Suspicious Filename was Detected, An Attempted Login Using a Suspicious Username was Detected, A System Call was Detected, A TCP Connection was Detected, A Network Trojan was Detected, A Client was Using an Unusual Port, Detection of a Network Scan, Detection of a Denial of Service Attack, Detection of a Non-Standard Protocol or Event, Generic Protocol Command Decode, Access to a Potentially Vulnerable Web Application, Web Application Attack, Misc activity, Misc Attack, Generic ICMP event, Inappropriate Content was Detected, Potential Corporate Privacy Violation, Attempt to Login By a Default Username and Password' + '\n')
+        csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic,Unknown Traffic,Potentially Bad Traffic,Attempted Information Leak,Information Leak,Large Scale Information Leak,Attempted Denial of Service,Denial of Service,Attempted User Privilege Gain,Unsuccessful User Privilege Gain,Successful User Privilege Gain,Attempted Administrator Privilege Gain,Successful Administrator Privilege Gain,Decode of an RPC Query,Executable Code was Detected,A Suspicious String was Detected,A Suspicious Filename was Detected,An Attempted Login Using a Suspicious Username was Detected,A System Call was Detected,A TCP Connection was Detected,A Network Trojan was Detected,A Client was Using an Unusual Port,Detection of a Network Scan,Detection of a Denial of Service Attack,Detection of a Non-Standard Protocol or Event,Generic Protocol Command Decode,Access to a Potentially Vulnerable Web Application,Web Application Attack,Misc activity,Misc Attack,Generic ICMP event,Inappropriate Content was Detected,Potential Corporate Privacy Violation,Attempt to Login By a Default Username and Password' + '\n')
         csvfile.flush()
 
     current_tw = ''
