@@ -14,9 +14,14 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import math
 
-version = '0.3'
+version = '0.3.1'
 
 # Changelog
+# 0.3.1:
+#  Delete the export in csv
+#  Only suricata categories with data is exported in the json
+#  Export in json
+#  Add summary of alerts per dst port
 # 0.3: 
 #  Fix the Unknown category in the csv
 # 0.2: 
@@ -26,7 +31,6 @@ version = '0.3'
 
 timewindows = {}
 timeStampFormat = '%Y-%m-%dT%H:%M:%S.%f'
-csvfile = ''
 categories = {'Not Suspicious Traffic':[], 'Unknown Traffic':[], 'Potentially Bad Traffic':[], 'Attempted Information Leak':[], 'Information Leak':[], 'Large Scale Information Leak':[], 'Attempted Denial of Service':[], 'Denial of Service':[], 'Attempted User Privilege Gain':[], 'Unsuccessful User Privilege Gain':[], 'Successful User Privilege Gain':[], 'Attempted Administrator Privilege Gain':[], 'Successful Administrator Privilege Gain':[], 'Decode of an RPC Query':[], 'Executable Code was Detected':[], 'A Suspicious String was Detected':[], 'A Suspicious Filename was Detected':[], 'An Attempted Login Using a Suspicious Username was Detected':[], 'A System Call was Detected':[], 'A TCP Connection was Detected':[], 'A Network Trojan was Detected':[], 'A Client was Using an Unusual Port':[], 'Detection of a Network Scan':[], 'Detection of a Denial of Service Attack':[], 'Detection of a Non-Standard Protocol or Event':[], 'Generic Protocol Command Decode':[], 'Access to a Potentially Vulnerable Web Application':[], 'Web Application Attack':[], 'Misc activity':[], 'Misc Attack':[], 'Generic ICMP event':[], 'Inappropriate Content was Detected':[], 'Potential Corporate Privacy Violation':[], 'Attempt to Login By a Default Username and Password':[]}
 colors = ['#d6d6f5','#7070db','#24248f','#ffccff','#ff1aff','#990099','#ffb3d1','#ff0066','#99003d','#ffe6b3','#ffcc66','#ffaa00','#ffffb3','#ffff00','#cccc00','#d9ffb3','#99ff33','#66cc00','#c6ecd9','#66cc99','#2d8659','#c2f0f0','#47d1d1','#248f8f','#b3f0ff','#00ccff','#008fb3','#b3ccff','#6699ff','#004de6','#ffccff','#ff66ff','#b300b3','#ffb3d1']
 
@@ -44,13 +48,16 @@ class TimeWindow(object):
         self.severities[2] = 0
         self.severities[3] = 0
         self.severities[4] = 0
-        for cat in categories:
-            self.categories[cat] = 0
+        #for cat in categories:
+        #    self.categories[cat] = 0
         self.signatures = {}
         self.src_ips = {}
         self.dst_ips = {}
+        self.src_ports = {}
+        self.dst_ports = {}
 
-    def add_alert(self, category, severity, signature, src_ip, dst_ip):
+    def add_alert(self, category, severity, signature, src_ip, dst_ip, srcport, destport):
+        # Categories
         if category == '':
             try:
                 self.categories['Unknown Traffic'] += 1
@@ -61,26 +68,50 @@ class TimeWindow(object):
                 self.categories[category] += 1
             except KeyError:
                 self.categories[category] = 1
+        # Severities
         try:
             self.severities[int(severity)] += 1
         except KeyError:
             self.severities[int(severity)] = 1
+        # Signatures
         try:
             self.signatures[signature] += 1
         except KeyError:
             self.signatures[signature] = 1
+        # Srcip
         try:
             self.src_ips[src_ip] += 1
         except KeyError:
             self.src_ips[src_ip] = 1
+        # Dstip
         try:
             self.dst_ips[dst_ip] += 1
         except KeyError:
             self.dst_ips[dst_ip] = 1
+        # Srcport
+        try:
+            self.src_ports[srcport] += 1
+        except KeyError:
+            self.src_ports[srcport] = 1
+        # dstport
+        try:
+            self.dst_ports[destport] += 1
+        except KeyError:
+            self.dst_ports[destport] = 1
 
-    def get_csv(self):
-        return '{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]], self.categories['Not Suspicious Traffic'], self.categories['Unknown Traffic'], self.categories['Potentially Bad Traffic'], self.categories['Attempted Information Leak'], self.categories['Information Leak'], self.categories['Large Scale Information Leak'], self.categories['Attempted Denial of Service'], self.categories['Denial of Service'], self.categories['Attempted User Privilege Gain'], self.categories['Unsuccessful User Privilege Gain'], self.categories['Successful User Privilege Gain'], self.categories['Attempted Administrator Privilege Gain'], self.categories['Successful Administrator Privilege Gain'], self.categories['Decode of an RPC Query'], self.categories['Executable Code was Detected'], self.categories['A Suspicious String was Detected'], self.categories['A Suspicious Filename was Detected'], self.categories['An Attempted Login Using a Suspicious Username was Detected'], self.categories['A System Call was Detected'], self.categories['A TCP Connection was Detected'], self.categories['A Network Trojan was Detected'], self.categories['A Client was Using an Unusual Port'], self.categories['Detection of a Network Scan'], self.categories['Detection of a Denial of Service Attack'], self.categories['Detection of a Non-Standard Protocol or Event'], self.categories['Generic Protocol Command Decode'], self.categories['Access to a Potentially Vulnerable Web Application'], self.categories['Web Application Attack'], self.categories['Misc activity'], self.categories['Misc Attack'], self.categories['Generic ICMP event'], self.categories['Inappropriate Content was Detected'], self.categories['Potential Corporate Privacy Violation'], self.categories['Attempt to Login By a Default Username and Password'])
-        
+    def get_json(self):
+        """
+        Returns the json representation of the data in this time window
+        """
+        data = {}
+        data['Alerts Categories'] = self.categories
+        data['Per DstPort'] = self.dst_ports
+        result = {}
+        result[self.hour] = data
+        #data['Per SrcPort'] = self.src_ports
+        json_result = json.dumps(result)
+        return json_result
+
     def __repr__(self):
         return 'TW: {}. #Categories: {}. #Signatures: {}. #SrcIp: {}. #DstIP: {}. #Severities: 1:{}, 2:{}, 3:{}, 4:{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]])
 
@@ -123,11 +154,11 @@ def output_tw(time_tw):
     for cat in tw.categories:
         if tw.categories[cat] != 0:
             print '\t\t{}: {}'.format(cat, tw.categories[cat])
-    #CSV
-    if args.csv:
-        csvline = tw.get_csv()
-        csvfile.write(csvline + '\n')
-        csvfile.flush()
+    #Json
+    if args.json:
+        jsonline = tw.get_json()
+        jsonfile.write(jsonline + '\n')
+        jsonfile.flush()
 
 def plot():
     """
@@ -231,9 +262,17 @@ def process_line(line):
     col_signature = json_line['alert']['signature']
     col_srcip = json_line['src_ip']
     col_dstip = json_line['dest_ip']
+    try:
+        col_srcport = json_line['src_port']
+    except KeyError:
+        col_srcport = ''
+    try:
+        col_dstport = json_line['dest_port']
+    except KeyError:
+        col_dstport = ''
     # Get the time window object
     current_tw = get_tw(col_time)
-    current_tw.add_alert(col_category, col_severity, col_signature, col_srcip, col_dstip)
+    current_tw.add_alert(col_category, col_severity, col_signature, col_srcip, col_dstip, col_srcport, col_dstport)
     return current_tw
 
 def roundTime(dt=None, date_delta=timedelta(minutes=1), to='average'):
@@ -270,10 +309,10 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--file', help='Suricata eve.json file.', action='store', required=False)
     parser.add_argument('-w', '--width', help='Width of the time window to process. In minutes.', action='store', required=False, type=int, default=60)
     parser.add_argument('-d', '--dstnet', help='Destination net to monitor. Ex: 192.168 to search everything attacking 192.168.0.0/16 network', action='store', required=False)
-    parser.add_argument('-c', '--csv', help='CSV output file', action='store', type=str, required=False)
     parser.add_argument('-p', '--plot', help='Plot the data in an active window.', action='store_true', required=False)
     parser.add_argument('-P', '--plotfile', help='Store the plot in this file. Extension can be .eps, .png or .pdf. I suggest eps for higher resolution', action='store', type=str, required=False)
     parser.add_argument('-l', '--log', help='Plot in a logarithmic scale', action='store_true', required=False)
+    parser.add_argument('-j', '--json', help='Json file name to output data in the timewindow in json format. Much less columns outputed.', action='store', type=str, required=False)
     args = parser.parse_args()
 
     # Get the verbosity, if it was not specified as a parameter 
@@ -284,11 +323,9 @@ if __name__ == '__main__':
     if args.debug < 0:
         args.debug = 0
 
-    # If csv
-    if args.csv:
-        csvfile = open(args.csv, 'w')
-        csvfile.write( 'timestamp,#categories,#signatures,#srcip,#dstip,sev1,sev2,sev3,sev4,Not Suspicious Traffic,Unknown Traffic,Potentially Bad Traffic,Attempted Information Leak,Information Leak,Large Scale Information Leak,Attempted Denial of Service,Denial of Service,Attempted User Privilege Gain,Unsuccessful User Privilege Gain,Successful User Privilege Gain,Attempted Administrator Privilege Gain,Successful Administrator Privilege Gain,Decode of an RPC Query,Executable Code was Detected,A Suspicious String was Detected,A Suspicious Filename was Detected,An Attempted Login Using a Suspicious Username was Detected,A System Call was Detected,A TCP Connection was Detected,A Network Trojan was Detected,A Client was Using an Unusual Port,Detection of a Network Scan,Detection of a Denial of Service Attack,Detection of a Non-Standard Protocol or Event,Generic Protocol Command Decode,Access to a Potentially Vulnerable Web Application,Web Application Attack,Misc activity,Misc Attack,Generic ICMP event,Inappropriate Content was Detected,Potential Corporate Privacy Violation,Attempt to Login By a Default Username and Password' + '\n')
-        csvfile.flush()
+    # Json
+    if args.json:
+        jsonfile = open(args.json, 'w')
 
     current_tw = ''
     try:
@@ -309,6 +346,7 @@ if __name__ == '__main__':
                 if tw:
                     current_tw = tw
     except KeyboardInterrupt:
+        # Do the final things
         pass
 
     ## Print last tw
@@ -317,8 +355,9 @@ if __name__ == '__main__':
     str_round_down_timestamp = round_down_timestamp.strftime(timeStampFormat)
     output_tw(str_round_down_timestamp)
 
-    if args.csv:
-        csvfile.close()
+    # Close files
+    if args.json:
+        jsonfile.close()
 
     if args.plot:
         plot()
