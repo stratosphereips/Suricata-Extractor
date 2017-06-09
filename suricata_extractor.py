@@ -48,8 +48,6 @@ class TimeWindow(object):
         self.severities[2] = 0
         self.severities[3] = 0
         self.severities[4] = 0
-        #for cat in categories:
-        #    self.categories[cat] = 0
         self.signatures = {}
         self.src_ips = {}
         self.dst_ips = {}
@@ -105,7 +103,15 @@ class TimeWindow(object):
         """
         data = {}
         data['Alerts Categories'] = self.categories
-        data['Per DstPort'] = self.dst_ports
+        data['# Uniq Signatures'] = len(self.signatures)
+        data['# Severity 1'] = self.severities[self.severities.keys()[0]]
+        data['# Severity 2'] = self.severities[self.severities.keys()[1]]
+        data['# Severity 3'] = self.severities[self.severities.keys()[2]]
+        data['# Severity 4'] = self.severities[self.severities.keys()[3]]
+        data['Alerts/DstPort'] = self.dst_ports
+        #data['Alerts/SrcPort'] = self.src_ports
+        data['Alerts/SrcIP'] = self.src_ips
+        data['Alers/DstIP'] = self.dst_ips
         result = {}
         result[self.hour] = data
         #data['Per SrcPort'] = self.src_ports
