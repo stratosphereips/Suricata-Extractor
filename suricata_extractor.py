@@ -139,7 +139,7 @@ class TimeWindow(object):
         # Compute the combination of ports per unique attacker
         # port_combinations will be: {dstip: {srcip: [ 1stport, 2ndport ]}}
         # Do not do it if the dest port is empty (in icmp for example)
-        if destport != '':
+        if args.ports and destport != '':
             try:
                 srcdict = self.port_combinations[dst_ip]
                 try:
@@ -193,14 +193,41 @@ class TimeWindow(object):
         json_result = json.dumps(result)
         return json_result
 
+    def count_port_combinations(self):
+        """
+        Compute the amount of attackers attacking each port combination on each dst ip
+        """
+        self.final_count_per_dst_ip = {}
+        final_ports_counts = {}
+        for dst_ip in self.port_combinations:
+            for src_ip in self.port_combinations[dst_ip]:
+                for portscom in self.port_combinations[dst_ip][src_ip]:
+                    try:
+                        # We count precisely who attacks ports 22,80, ... no 22,80,443 as also 22,80
+                        amount = final_ports_counts[portscom]
+                        amount += 1
+                        final_ports_counts[portscom] = amount
+                    except KeyError:
+                        amount = 1
+                        final_ports_counts[portscom] = amount
+            self.final_count_per_dst_ip[dst_ip] = final_ports_counts
+            final_ports_counts = {}
+    
+    def print_port_combinations(self):
+        print self.final_count_per_dst_ip
+        #for dst_ip in self.final_count_per_dst_ip:
+        #    print dst_ip
+        #    print '\t' + str(self.final_count_per_dst_ip[dst_ip])
+
+    def get_port_combination_lines(self):
+        self.count_port_combinations()
+        return self.final_count_per_dst_ip
+
     def __repr__(self):
         return 'TW: {}. #Categories: {}. #Signatures: {}. #SrcIp: {}. #DstIP: {}. #Severities: 1:{}, 2:{}, 3:{}, 4:{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]])
 
     def printit(self):
         print 'TW: {}. #Categories: {}. #Signatures: {}. #SrcIp: {}. #DstIP: {}. #Severities: 1:{}, 2:{}, 3:{}, 4:{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]])
-        #for dst_ip in self.port_combinations:
-            #print str(dst_ip) 
-            #print '\t' + str(self.port_combinations[dst_ip])
 
 def get_tw(col_time):
     """
@@ -246,6 +273,13 @@ def output_tw(time_tw):
         jsonline = tw.get_json()
         jsonfile.write(jsonline + '\n')
         jsonfile.flush()
+    # Ports combination file
+    if args.ports:
+        portslines = tw.get_port_combination_lines()
+        portsfile.write(str(tw.hour) + '\n')
+        for dst_ip in portslines:
+            portsfile.write(str(dst_ip) + ': ' + str(portslines[dst_ip]) + '\n')
+        portsfile.flush()
 
 def plot():
     """
@@ -400,7 +434,7 @@ if __name__ == '__main__':
     parser.add_argument('-P', '--plotfile', help='Store the plot in this file. Extension can be .eps, .png or .pdf. I suggest eps for higher resolution', action='store', type=str, required=False)
     parser.add_argument('-l', '--log', help='Plot in a logarithmic scale', action='store_true', required=False)
     parser.add_argument('-j', '--json', help='Json file name to output data in the timewindow in json format. Much less columns outputed.', action='store', type=str, required=False)
-    parser.add_argument('-o', '--ports', help='Compute information about the usage of ports by the attackers. For each combination of ports, count how many unique IPs connected to them. You need a JSON file for the output.', action='store_true', required=False)
+    parser.add_argument('-o', '--ports', help='Compute information about the usage of ports by the attackers. For each combination of ports, count how many unique IPs connected to them. You need also to select JSON output. The results are stored in a file with the same name as the JSON file but with extension .ports_combination', action='store_true', required=False)
     args = parser.parse_args()
 
     # Get the verbosity, if it was not specified as a parameter 
@@ -414,6 +448,10 @@ if __name__ == '__main__':
     # Json
     if args.json:
         jsonfile = open(args.json, 'w')
+
+    if args.ports:
+        portsfilename = args.json.split('.')[0] + '.ports_combination'
+        portsfile = open(portsfilename, 'w')
 
     current_tw = ''
     try:
@@ -449,4 +487,7 @@ if __name__ == '__main__':
 
     if args.plot:
         plot()
+
+    if args.ports:
+        portsfile.close()
 
