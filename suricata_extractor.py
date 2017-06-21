@@ -14,9 +14,11 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import math
 
-version = '0.3.1'
+version = '0.3.2'
 
 # Changelog
+# 0.3.1
+#  Output information for each combination of ports accessed by each uniq attacker
 # 0.3.1:
 #  Delete the export in csv
 #  Only suricata categories with data is exported in the json
@@ -53,9 +55,13 @@ class TimeWindow(object):
         self.dst_ips = {}
         self.src_ports = {}
         self.dst_ports = {}
+        # port_combinations will be: {dstip: {srcip: [1st port, 2nd port]}}
+        self.port_combinations = {}
 
     def add_alert(self, category, severity, signature, src_ip, dst_ip, srcport, destport):
         # Categories
+        if args.debug > 1:
+            print '\ncat:{}, sev:{}, sig:{}, srcip:{}, dstip:{}, srcp:{}, dstp:{}'.format(category, severity, signature, src_ip, dst_ip, srcport, destport)
         if category == '':
             try:
                 self.categories['Unknown Traffic'] += 1
@@ -97,6 +103,75 @@ class TimeWindow(object):
         except KeyError:
             self.dst_ports[destport] = 1
 
+        # Compute the combination of ports per unique attacker
+        # port_combinations will be: {dstip: {srcip: [ 1stport, 2ndport ]}}
+        # Do not do it if the dest port is empty (in icmp for example)
+        #if destport != '':
+            #try:
+                #srcdict = self.port_combinations[dst_ip]
+                #try:
+                    ## the dstip is there, the srcip is also there, just add the port
+                    #ports = srcdict[src_ip]
+                    ## We have this dstip, srcip, just add the port
+                    #ports.append(destport)
+                    #srcdict[src_ip] = ports
+                    #self.port_combinations[dst_ip] = srcdict
+                    #if args.debug:
+                        #print 'Added port {}, to srcip {} attacking dstip {}'.format(destport, src_ip, dst_ip)
+                #except KeyError:
+                    ## first time for this src_ip attacking this dst_ip
+                    #ports = []
+                    #ports.append(destport)
+                    #srcdict[src_ip] = ports
+                    #self.port_combinations[dst_ip] = srcdict
+                    #if args.debug:
+                        #print 'New srcip {} attacking dstip {} on port {}'.format(src_ip, dst_ip, destport)
+            #except KeyError:
+                ## First time for this dst ip
+                #ports = []
+                #ports.append(destport)
+                #srcdict = {}
+                #srcdict[src_ip] = ports
+                #self.port_combinations[dst_ip] = srcdict
+                #if args.debug:
+                    #print 'New dst IP {}, attacked from srcip {} on port {}'.format(dst_ip, src_ip, destport)
+
+        # Compute the combination of ports per unique attacker
+        # port_combinations will be: {dstip: {srcip: [ 1stport, 2ndport ]}}
+        # Do not do it if the dest port is empty (in icmp for example)
+        if destport != '':
+            try:
+                srcdict = self.port_combinations[dst_ip]
+                try:
+                    # the dstip is there, the srcip is also there, just add the port
+                    ports = srcdict[src_ip]
+                    # We have this dstip, srcip, just add the port
+                    try:
+                        ports.index(destport)
+                    except ValueError:
+                        ports.append(destport)
+                    srcdict[src_ip] = ports
+                    self.port_combinations[dst_ip] = srcdict
+                    if args.debug:
+                        print 'Added port {}, to srcip {} attacking dstip {}'.format(destport, src_ip, dst_ip)
+                except KeyError:
+                    # first time for this src_ip attacking this dst_ip
+                    ports = []
+                    ports.append(destport)
+                    srcdict[src_ip] = ports
+                    self.port_combinations[dst_ip] = srcdict
+                    if args.debug:
+                        print 'New srcip {} attacking dstip {} on port {}'.format(src_ip, dst_ip, destport)
+            except KeyError:
+                # First time for this dst ip
+                ports = []
+                ports.append(destport)
+                srcdict = {}
+                srcdict[src_ip] = ports
+                self.port_combinations[dst_ip] = srcdict
+                if args.debug:
+                    print 'New dst IP {}, attacked from srcip {} on port {}'.format(dst_ip, src_ip, destport)
+
     def get_json(self):
         """
         Returns the json representation of the data in this time window
@@ -120,6 +195,12 @@ class TimeWindow(object):
 
     def __repr__(self):
         return 'TW: {}. #Categories: {}. #Signatures: {}. #SrcIp: {}. #DstIP: {}. #Severities: 1:{}, 2:{}, 3:{}, 4:{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]])
+
+    def printit(self):
+        print 'TW: {}. #Categories: {}. #Signatures: {}. #SrcIp: {}. #DstIP: {}. #Severities: 1:{}, 2:{}, 3:{}, 4:{}'.format(str(self.hour), len(self.categories), len(self.signatures), len(self.src_ips), len(self.dst_ips), self.severities[self.severities.keys()[0]], self.severities[self.severities.keys()[1]], self.severities[self.severities.keys()[2]], self.severities[self.severities.keys()[3]])
+        #for dst_ip in self.port_combinations:
+            #print str(dst_ip) 
+            #print '\t' + str(self.port_combinations[dst_ip])
 
 def get_tw(col_time):
     """
@@ -153,7 +234,7 @@ def output_tw(time_tw):
         tw = timewindows[time_tw]
         if args.verbose > 1:
             print 'Printing TW that started in: {}'.format(time_tw)
-        print tw
+        tw.printit()
     except KeyError:
         return False
     print '\tCategories:'
@@ -246,9 +327,9 @@ def plot():
         plt.savefig(args.plotfile, dpi=1000)
     plt.show()
 
-
 def process_line(line):
     """
+    Process each line, extract the columns, get the correct TW and store each alert on the TW object
     """
     if args.verbose > 3:
         print 'Processing line {}'.format(line)
@@ -319,6 +400,7 @@ if __name__ == '__main__':
     parser.add_argument('-P', '--plotfile', help='Store the plot in this file. Extension can be .eps, .png or .pdf. I suggest eps for higher resolution', action='store', type=str, required=False)
     parser.add_argument('-l', '--log', help='Plot in a logarithmic scale', action='store_true', required=False)
     parser.add_argument('-j', '--json', help='Json file name to output data in the timewindow in json format. Much less columns outputed.', action='store', type=str, required=False)
+    parser.add_argument('-o', '--ports', help='Compute information about the usage of ports by the attackers. For each combination of ports, count how many unique IPs connected to them. You need a JSON file for the output.', action='store_true', required=False)
     args = parser.parse_args()
 
     # Get the verbosity, if it was not specified as a parameter 
