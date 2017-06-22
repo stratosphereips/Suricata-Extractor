@@ -201,15 +201,15 @@ class TimeWindow(object):
         final_ports_counts = {}
         for dst_ip in self.port_combinations:
             for src_ip in self.port_combinations[dst_ip]:
-                for portscom in self.port_combinations[dst_ip][src_ip]:
-                    try:
-                        # We count precisely who attacks ports 22,80, ... no 22,80,443 as also 22,80
-                        amount = final_ports_counts[portscom]
-                        amount += 1
-                        final_ports_counts[portscom] = amount
-                    except KeyError:
-                        amount = 1
-                        final_ports_counts[portscom] = amount
+                # We count precisely who attacks ports 22,80, ... no 22,80,443 as also 22,80
+                portscom = str(self.port_combinations[dst_ip][src_ip]).replace('[','').replace(']','')
+                try:
+                    amount = final_ports_counts[portscom]
+                    amount += 1
+                    final_ports_counts[portscom] = amount
+                except KeyError:
+                    amount = 1
+                    final_ports_counts[portscom] = amount
             self.final_count_per_dst_ip[dst_ip] = final_ports_counts
             final_ports_counts = {}
     
@@ -220,6 +220,9 @@ class TimeWindow(object):
         #    print '\t' + str(self.final_count_per_dst_ip[dst_ip])
 
     def get_port_combination_lines(self):
+        """
+        Call the combination of ports and return an object with all the info for this TW.
+        """
         self.count_port_combinations()
         return self.final_count_per_dst_ip
 
@@ -231,6 +234,8 @@ class TimeWindow(object):
 
 def get_tw(col_time):
     """
+    Creates the time window or get the correct one.
+    When a TW is finished here we should call the output function. 
     """
     timestamp = datetime.strptime(col_time, timeStampFormat)
     # Get the closest down time rounded
@@ -255,7 +260,8 @@ def get_tw(col_time):
 
 def output_tw(time_tw):
     """
-    Print the TW
+    Print the TW in screen
+    Output the tw in files
     """
     try:
         tw = timewindows[time_tw]
@@ -416,6 +422,46 @@ def roundTime(dt=None, date_delta=timedelta(minutes=1), to='average'):
         rounding = (seconds + round_to / 2) // round_to * round_to
     return dt + timedelta(0, rounding - seconds, -dt.microsecond)
 
+def summarize_ports():
+    """
+    After all the tw finished, summarize the port combinations in all the TW and print it in a separate file
+    """
+    if args.debug > 0:
+        print 'Computing the summary of ports combinations in all the time windows'
+    port_summary = {}
+    for tw in timewindows:
+        ports_data = timewindows[tw].final_count_per_dst_ip
+        for srcip in ports_data:
+            try:
+                #print 'Src IP: {}'.format(srcip)
+                # ports for this ip alredy in the global dict
+                srcip_ports = port_summary[srcip]
+                #print 'Ports com we already have: {}'.format(srcip_ports)
+                #print 'Ports com in the current tw: {}'.format(ports_data[srcip])
+                # for each port in the ports for the src ip in the current tw
+                for twport in ports_data[srcip]:
+                    try:
+                        # is this combination of ports in the global dict?
+                        amount = srcip_ports[twport]
+                        # yes, so add the new ports
+                        srcip_ports[twport] += ports_data[srcip][twport]
+                        #print 'We do have this comb. Updating to {}'.format(srcip_ports)
+                    except KeyError:
+                        # The new port combination is not in the global dict yet, just store the ports we have in the current tw
+                        srcip_ports[twport] = ports_data[srcip][twport]
+                        #print 'We do not have this comb. Updating to {}'.format(srcip_ports)
+                # update the global dict for this src ip
+                port_summary[srcip] = srcip_ports
+            except KeyError:
+                port_summary[srcip] = ports_data[srcip]
+    summaryportsfilename = '.'.join(args.json.split('.')[:-1]) + '.summary_ports'
+    summary_port_file = open(summaryportsfilename, 'w')
+    for srcip in port_summary:
+        summary_port_file.write(str(srcip) + ': ' + str(port_summary[srcip]) + '\n')
+    summary_port_file.close()
+
+
+
 ####################
 # Main
 ####################
@@ -434,7 +480,7 @@ if __name__ == '__main__':
     parser.add_argument('-P', '--plotfile', help='Store the plot in this file. Extension can be .eps, .png or .pdf. I suggest eps for higher resolution', action='store', type=str, required=False)
     parser.add_argument('-l', '--log', help='Plot in a logarithmic scale', action='store_true', required=False)
     parser.add_argument('-j', '--json', help='Json file name to output data in the timewindow in json format. Much less columns outputed.', action='store', type=str, required=False)
-    parser.add_argument('-o', '--ports', help='Compute information about the usage of ports by the attackers. For each combination of ports, count how many unique IPs connected to them. You need also to select JSON output. The results are stored in a file with the same name as the JSON file but with extension .ports_combination', action='store_true', required=False)
+    parser.add_argument('-o', '--ports', help='Compute information about the usage of ports by the attackers. For each combination of ports, count how many unique IPs connected to them. You need also to select JSON output. The results are stored in a file with the same name as the JSON file but with extension .ports', action='store_true', required=False)
     args = parser.parse_args()
 
     # Get the verbosity, if it was not specified as a parameter 
@@ -450,7 +496,7 @@ if __name__ == '__main__':
         jsonfile = open(args.json, 'w')
 
     if args.ports:
-        portsfilename = args.json.split('.')[0] + '.ports_combination'
+        portsfilename = '.'.join(args.json.split('.')[:-1]) + '.ports'
         portsfile = open(portsfilename, 'w')
 
     current_tw = ''
@@ -489,5 +535,6 @@ if __name__ == '__main__':
         plot()
 
     if args.ports:
+        # Here we do the final summary of ports in the complete file
+        summarize_ports()
         portsfile.close()
-
