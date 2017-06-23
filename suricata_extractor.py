@@ -10,8 +10,8 @@ import time
 from os.path import isfile, join
 import json
 from pprint import pprint
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+#import matplotlib.pyplot as plt
+#import matplotlib.patches as mpatches
 import math
 
 version = '0.3.2'
@@ -57,8 +57,25 @@ class TimeWindow(object):
         self.dst_ports = {}
         # port_combinations will be: {dstip: {srcip: [1st port, 2nd port]}}
         self.port_combinations = {}
+        self.final_count_per_dst_ip = {}
+        # bandwidth = {dstport: [mbits]}
+        self.bandwidth = {}
+
+    def add_flow(self, src_ip, dst_ip, srcport, dstport, proto, bytes_toserver, bytes_toclient):
+        """
+        Receive a flow and use it
+        """
+        if 'TCP' in proto:
+            try:
+                data = self.bandwidth[dstport]
+                self.bandwidth[dstport] += bytes_toserver + bytes_toclient
+            except KeyError:
+                self.bandwidth[dstport] = bytes_toserver + bytes_toclient
 
     def add_alert(self, category, severity, signature, src_ip, dst_ip, srcport, destport):
+        """
+        Receive an alert and it adds it to the TW
+        """
         # Categories
         if args.debug > 1:
             print '\ncat:{}, sev:{}, sig:{}, srcip:{}, dstip:{}, srcp:{}, dstp:{}'.format(category, severity, signature, src_ip, dst_ip, srcport, destport)
@@ -286,6 +303,11 @@ def output_tw(time_tw):
         for dst_ip in portslines:
             portsfile.write(str(dst_ip) + ': ' + str(portslines[dst_ip]) + '\n')
         portsfile.flush()
+    # flows
+    print '\tDports Bandwidth'
+    for dport in tw.bandwidth:
+        mbits = float(tw.bandwidth[dport]) / 8.0 / (args.width * 60 )
+        print '\t\t{}: {} Mbit/s'.format(dport, mbits)
 
 def plot():
     """
@@ -374,21 +396,38 @@ def process_line(line):
     if args.verbose > 3:
         print 'Processing line {}'.format(line)
     json_line = json.loads(line)
-    if json_line['event_type'] != 'alert':
+
+    if 'alert' not in json_line['event_type'] and 'flow' not in json_line['event_type']:
         return False
     if args.dstnet and args.dstnet not in json_line['dest_ip']:
         return False
     if args.verbose > 2:
         print 'Accepted line {}'.format(line)
     # forget the timezone for now with split
-    col_time = json_line['timestamp'].split('+')[0]
-    col_category = json_line['alert']['category']
-    #if not col_category:
-        #pprint(json_line['alert']['signature'])
-    col_severity = json_line['alert']['severity']
-    col_signature = json_line['alert']['signature']
-    col_srcip = json_line['src_ip']
-    col_dstip = json_line['dest_ip']
+    try:
+        col_time = json_line['timestamp'].split('+')[0]
+    except KeyError:
+        col_time = ''
+    try:
+        col_category = json_line['alert']['category']
+    except KeyError:
+        col_category = ''
+    try:
+        col_severity = json_line['alert']['severity']
+    except KeyError:
+        col_severity = ''
+    try:
+        col_signature = json_line['alert']['signature']
+    except KeyError:
+        col_signature = ''
+    try:
+        col_srcip = json_line['src_ip']
+    except KeyError:
+        col_srcip = ''
+    try:
+        col_dstip = json_line['dest_ip']
+    except KeyError:
+        col_dstip = ''
     try:
         col_srcport = json_line['src_port']
     except KeyError:
@@ -399,7 +438,22 @@ def process_line(line):
         col_dstport = ''
     # Get the time window object
     current_tw = get_tw(col_time)
-    current_tw.add_alert(col_category, col_severity, col_signature, col_srcip, col_dstip, col_srcport, col_dstport)
+    if 'alert' in json_line['event_type']:
+        current_tw.add_alert(col_category, col_severity, col_signature, col_srcip, col_dstip, col_srcport, col_dstport)
+    elif 'flow' in json_line['event_type']:
+        try:
+            col_proto = json_line['proto']
+        except KeyError:
+            col_proto = ''
+        try:
+            col_bytes_toserver = json_line['flow']['bytes_toserver']
+        except KeyError:
+            col_bytes_toserver = ''
+        try:
+            col_bytes_toclient = json_line['flow']['bytes_toclient']
+        except KeyError:
+            col_bytes_toclient = ''
+        current_tw.add_flow(col_srcip, col_dstip, col_srcport, col_dstport, col_proto, col_bytes_toserver, col_bytes_toclient)
     return current_tw
 
 def roundTime(dt=None, date_delta=timedelta(minutes=1), to='average'):
@@ -481,6 +535,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--log', help='Plot in a logarithmic scale', action='store_true', required=False)
     parser.add_argument('-j', '--json', help='Json file name to output data in the timewindow in json format. Much less columns outputed.', action='store', type=str, required=False)
     parser.add_argument('-o', '--ports', help='Compute information about the usage of ports by the attackers. For each combination of ports, count how many unique IPs connected to them. You need also to select JSON output. The results are stored in a file with the same name as the JSON file but with extension .ports', action='store_true', required=False)
+    parser.add_argument('-b', '--bandwidth', help='Compute the bandwidth consumption for the given set of ports. Ports numbers should be separated by comma. Only TCP ports supported. Bandwidth is computed in megabits per second on each timewindow, and then it is averaged at the end. The results per time window are included in the json file (so is mandatory to opt it) and the general final values are reported in a file with extension .bandwidth.', action='store_true', required=False)
     args = parser.parse_args()
 
     # Get the verbosity, if it was not specified as a parameter 
@@ -522,10 +577,13 @@ if __name__ == '__main__':
         pass
 
     ## Print last tw
-    timestamp = datetime.strptime(current_tw.start_time, timeStampFormat)
-    round_down_timestamp = roundTime(timestamp,timedelta(minutes=args.width), 'down')
-    str_round_down_timestamp = round_down_timestamp.strftime(timeStampFormat)
-    output_tw(str_round_down_timestamp)
+    try:
+        timestamp = datetime.strptime(current_tw.start_time, timeStampFormat)
+        round_down_timestamp = roundTime(timestamp,timedelta(minutes=args.width), 'down')
+        str_round_down_timestamp = round_down_timestamp.strftime(timeStampFormat)
+        output_tw(str_round_down_timestamp)
+    except AttributeError:
+        print 'Not a final time window? Some error?'
 
     # Close files
     if args.json:
