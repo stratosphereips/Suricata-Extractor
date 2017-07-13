@@ -13,6 +13,7 @@ from pprint import pprint
 #import matplotlib.pyplot as plt
 #import matplotlib.patches as mpatches
 import math
+import subprocess
 
 version = '0.3.2'
 
@@ -516,6 +517,11 @@ if __name__ == '__main__':
     # Limit any debuggisity to > 0
     if args.debug < 0:
         args.debug = 0
+
+    # Get the types of ports and bytes/pkts using IPTablesAnalyzer/iptables_analyzer.py
+    ports_data = subprocess.Popen('./IPTablesAnalyzer/iptables_analyzer.py -j', shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
+    print ports_data
+
 
     # Json
     if args.json:
