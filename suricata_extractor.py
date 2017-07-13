@@ -65,12 +65,14 @@ class TimeWindow(object):
         """
         Receive a flow and use it
         """
-        if 'TCP' in proto:
-            try:
-                data = self.bandwidth[dstport]
-                self.bandwidth[dstport] += bytes_toserver + bytes_toclient
-            except KeyError:
-                self.bandwidth[dstport] = bytes_toserver + bytes_toclient
+        # If we were told to get the bandwidth, do ti
+        if args.bandwidth:
+            if 'TCP' in proto:
+                try:
+                    data = self.bandwidth[dstport]
+                    self.bandwidth[dstport] += bytes_toserver + bytes_toclient
+                except KeyError:
+                    self.bandwidth[dstport] = bytes_toserver + bytes_toclient
 
     def add_alert(self, category, severity, signature, src_ip, dst_ip, srcport, destport):
         """
@@ -119,39 +121,6 @@ class TimeWindow(object):
             self.dst_ports[destport] += 1
         except KeyError:
             self.dst_ports[destport] = 1
-
-        # Compute the combination of ports per unique attacker
-        # port_combinations will be: {dstip: {srcip: [ 1stport, 2ndport ]}}
-        # Do not do it if the dest port is empty (in icmp for example)
-        #if destport != '':
-            #try:
-                #srcdict = self.port_combinations[dst_ip]
-                #try:
-                    ## the dstip is there, the srcip is also there, just add the port
-                    #ports = srcdict[src_ip]
-                    ## We have this dstip, srcip, just add the port
-                    #ports.append(destport)
-                    #srcdict[src_ip] = ports
-                    #self.port_combinations[dst_ip] = srcdict
-                    #if args.debug:
-                        #print 'Added port {}, to srcip {} attacking dstip {}'.format(destport, src_ip, dst_ip)
-                #except KeyError:
-                    ## first time for this src_ip attacking this dst_ip
-                    #ports = []
-                    #ports.append(destport)
-                    #srcdict[src_ip] = ports
-                    #self.port_combinations[dst_ip] = srcdict
-                    #if args.debug:
-                        #print 'New srcip {} attacking dstip {} on port {}'.format(src_ip, dst_ip, destport)
-            #except KeyError:
-                ## First time for this dst ip
-                #ports = []
-                #ports.append(destport)
-                #srcdict = {}
-                #srcdict[src_ip] = ports
-                #self.port_combinations[dst_ip] = srcdict
-                #if args.debug:
-                    #print 'New dst IP {}, attacked from srcip {} on port {}'.format(dst_ip, src_ip, destport)
 
         # Compute the combination of ports per unique attacker
         # port_combinations will be: {dstip: {srcip: [ 1stport, 2ndport ]}}
@@ -304,10 +273,11 @@ def output_tw(time_tw):
             portsfile.write(str(dst_ip) + ': ' + str(portslines[dst_ip]) + '\n')
         portsfile.flush()
     # flows
-    print '\tDports Bandwidth'
-    for dport in tw.bandwidth:
-        mbits = float(tw.bandwidth[dport]) / 8.0 / (args.width * 60 )
-        print '\t\t{}: {} Mbit/s'.format(dport, mbits)
+    if args.bandwidth:
+        print '\tDports Bandwidth'
+        for dport in tw.bandwidth:
+            mbits = float(tw.bandwidth[dport]) / 8.0 / (args.width * 60 )
+            print '\t\t{}: {} Mbit/s'.format(dport, mbits)
 
 def plot():
     """
@@ -535,6 +505,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--log', help='Plot in a logarithmic scale', action='store_true', required=False)
     parser.add_argument('-j', '--json', help='Json file name to output data in the timewindow in json format. Much less columns outputed.', action='store', type=str, required=False)
     parser.add_argument('-o', '--ports', help='Compute information about the usage of ports by the attackers. For each combination of ports, count how many unique IPs connected to them. You need also to select JSON output. The results are stored in a file with the same name as the JSON file but with extension .ports', action='store_true', required=False)
+    parser.add_argument('-s', '--summarize_ports', help='Same as -o, but make a summary when the program exits. To have the data in total and not spited by time windows.', action='store_true', required=False)
     parser.add_argument('-b', '--bandwidth', help='Compute the bandwidth consumption for the given set of ports. Ports numbers should be separated by comma. Only TCP ports supported. Bandwidth is computed in megabits per second on each timewindow, and then it is averaged at the end. The results per time window are included in the json file (so is mandatory to opt it) and the general final values are reported in a file with extension .bandwidth.', action='store_true', required=False)
     args = parser.parse_args()
 
@@ -594,5 +565,6 @@ if __name__ == '__main__':
 
     if args.ports:
         # Here we do the final summary of ports in the complete file
-        summarize_ports()
+        if args.summarize_ports:
+            summarize_ports()
         portsfile.close()
