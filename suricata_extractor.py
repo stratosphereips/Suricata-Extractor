@@ -10,8 +10,8 @@ import time
 from os.path import isfile, join
 import json
 from pprint import pprint
-#import matplotlib.pyplot as plt
-#import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import math
 import subprocess
 
@@ -319,7 +319,10 @@ def plot():
     for tw in sorted(timewindows.iterkeys()):
         #labels.append(tw)
         for cat in categories:
-            categories[cat].append(timewindows[tw].categories[cat])
+            try:
+                categories[cat].append(timewindows[tw].categories[cat])
+            except KeyError:
+                categories[cat].append(0)
         sev1val.append(timewindows[tw].severities[1])
         sev2val.append(timewindows[tw].severities[2])
         sev3val.append(timewindows[tw].severities[3])
