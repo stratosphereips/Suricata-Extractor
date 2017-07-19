@@ -367,7 +367,11 @@ def process_line(line):
     """
     if args.verbose > 3:
         print 'Processing line {}'.format(line)
-    json_line = json.loads(line)
+    try:
+        json_line = json.loads(line)
+    except ValueError:
+        print 'Error reading the json file'
+        return False
 
     if 'alert' not in json_line['event_type'] and 'flow' not in json_line['event_type']:
         return False
