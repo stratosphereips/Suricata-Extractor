@@ -125,8 +125,9 @@ class TimeWindow(object):
 
         # Compute the combination of ports per unique attacker
         # port_combinations will be: {dstip: {srcip: [ 1stport, 2ndport ]}}
-        # Do not do it if the dest port is empty (in icmp for example)
-        if args.ports and destport != '':
+        # Do not do it if the dest port is empty (in icmp for example), and if the dst port is not in the list of the ports we want to monitor.
+        # The list of ports to monitor is the list of usual low numbered ports. Because suricata can give alerts for packets going back, so the dst port is 65332. We don't want that.
+        if args.ports and destport != '' and interesting_ports.has_key(destport):
             try:
                 srcdict = self.port_combinations[dst_ip]
                 try:
@@ -518,18 +519,24 @@ if __name__ == '__main__':
     if args.debug < 0:
         args.debug = 0
 
-    # Get the types of ports and bytes/pkts using IPTablesAnalyzer/iptables_analyzer.py
-    ports_data = subprocess.Popen('./IPTablesAnalyzer/iptables_analyzer.py -j', shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
-    print ports_data
+    # 1st Get the types of ports and bytes/pkts using IPTablesAnalyzer/iptables_analyzer.py
+    #ports_data = subprocess.Popen('./IPTablesAnalyzer/iptables_analyzer.py -j', shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE).communicate()
+    #print ports_data
 
-
-    # Json
+    # Prepare Json file and ports file
     if args.json:
         jsonfile = open(args.json, 'w')
-
     if args.ports:
         portsfilename = '.'.join(args.json.split('.')[:-1]) + '.ports'
         portsfile = open(portsfilename, 'w')
+        # read the interesting dst ports to monitor. This file should be with this distribution.
+        interesting_ports_file = open('ports.txt')
+        interesting_ports = {}
+        line = interesting_ports_file.readline().replace('\n','')
+        while line:
+            interesting_ports[int(line)] = 1
+            line = interesting_ports_file.readline().replace('\n','')
+        interesting_ports_file.close()
 
     current_tw = ''
     try:
